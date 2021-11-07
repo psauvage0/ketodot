@@ -54,6 +54,7 @@ to quickly create a Cobra application.`,
 			// cmdx.PrintRow(cmd, rts[0])
 			return nil
 		}
+		AssignColor(rts)
 		fmt.Print(Dot(rts))
 		return nil
 	},
@@ -78,11 +79,94 @@ func init() {
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
+type ColorGroup struct {
+	Color string
+	Group []*RelationTuple
+}
+
+// Merges cg2 into cg1. Also updates the ColorGroupMap.
+func MergeGroups(cg1 *ColorGroup, cg2 *ColorGroup, ColorGroupMap map[string]*ColorGroup) {
+	if cg1 == cg2 {
+		return
+	}
+	for _, r := range cg2.Group {
+		ColorGroupMap[r.LeftColorID()] = cg1
+		rID := r.RightColorID()
+		if rID != "" {
+			ColorGroupMap[rID] = cg1
+		}
+		cg1.Group = append(cg1.Group, r)
+		r.Color = cg1.Color
+	}
+	palette = append(palette, cg2.Color)
+	cg2.Color = ""
+	cg2.Group = []*RelationTuple{}
+}
+
+func AssignColor(rts []*RelationTuple) {
+	colorGroupMap := map[string]*ColorGroup{}
+	for _, v := range rts {
+
+		cg1, ok := colorGroupMap[v.LeftColorID()]
+		if ok {
+			cg1.Group = append(cg1.Group, v)
+		} else {
+			cg1 = NewColorGroup(PickColor())
+			colorGroupMap[v.LeftColorID()] = cg1
+			cg1.Group = append(cg1.Group, v)
+		}
+		v.Color = cg1.Color
+
+		r := v.RightColorID()
+		if r != "" {
+			cg2, ok := colorGroupMap[r]
+			if ok {
+				MergeGroups(cg2, cg1, colorGroupMap)
+			} else {
+				colorGroupMap[r] = cg1
+			}
+
+		}
+
+	}
+}
+
+var palette []string = []string{
+	"blue3",
+	"aqua",
+	"aquamarine4",
+	"blueviolet",
+	"chocolate4",
+	"darkgoldenrod",
+	"darkgreen",
+	"darkorange",
+	"deeppink",
+	"green",
+	"indigo",
+	"midnightblue",
+	"sienna4",
+	"tomato1",
+}
+
+func NewColorGroup(color string) *ColorGroup {
+	return &ColorGroup{Color: color}
+}
+
+func PickColor() string {
+	n := len(palette)
+	if n == 0 {
+		panic("empty palette")
+	}
+	res := palette[n-1]
+	palette = palette[:n-1]
+	return res
+}
+
 func Dot(rts []*RelationTuple) string {
 	sb := strings.Builder{}
 	sb.WriteString("digraph {\n")
 	for _, r := range rts {
-		sb.WriteString(fmt.Sprintf("  \"%v\" -> \"%v\" [ label=\"%v\"];\n", r.Namespace+":"+r.Object, r.Subject, r.Relation))
+		sb.WriteString(fmt.Sprintf("  \"%v\" -> \"%v\" [ label=\"%v\", color=\"%v\"];\n", r.Namespace+":"+r.Object, r.Subject, r.Relation, r.Color))
 	}
 	sb.WriteString("}\n")
 	return sb.String()
@@ -135,6 +219,21 @@ type RelationTuple struct {
 	Object    string  `json:"object"`
 	Relation  string  `json:"relation"`
 	Subject   Subject `json:"subject"`
+	Color     string
+}
+
+// Returns the left part of the Namespace+Object+Relation as a string for a colorID
+func (r RelationTuple) LeftColorID() string {
+	return r.Namespace + ":" + r.Object + "#" + r.Relation
+}
+
+// Returns the subjectSet if Subject is a set, empty string otherwise
+func (r RelationTuple) RightColorID() string {
+	set := r.Subject.SubjectSet()
+	if set != nil {
+		return set.Namespace + ":" + set.Object + "#" + set.Relation
+	}
+	return ""
 }
 
 type SubjectID struct {
