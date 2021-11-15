@@ -50,7 +50,7 @@ over an edge. Basically, the coloring is the representation of the `keto expand`
 command.
 
 The given example will render the following graph.
-[example](example.png)
+![example](example.png)
 
 ## Current limitations
 
