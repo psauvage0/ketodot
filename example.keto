@@ -1,21 +1,19 @@
-group:teamA#member@user:0
-group:teamA#member@user:1
-group:teamA#member@user:2
-group:teamA#member@user:3
+group:0#member@user:0
+group:0#member@user:1
+group:0#member@user:2
+group:1#member@user:3
 group:1#member@user:4
 group:1#member@user:5
-group:1#member@user:6
-group:1#member@user:7
-group:2#member@user:8
-group:2#member@user:9
+group:2#member@user:6
+group:2#member@user:7
 
 resource:0#parent@folder:0#
 resource:1#parent@folder:0#
 resource:2#parent@folder:1#
-resource:last#parent@folder:1#
-folder:0#parent@folder:all#
-folder:1#parent@folder:all#
-folder:all#view@group:teamA#member
+resource:3#parent@folder:1#
+folder:0#editor@group:0#member
+folder:0#owner@user:2
+
 
 folder:1#owner@group:1#member
 folder:0#viewer@group:2#member
