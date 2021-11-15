@@ -24,7 +24,7 @@ to render it, **or** you can simply copy and paste the output [here](https://dre
 The way Keto works can be understood as a simple graph reachability problem.
 Objects and subjects are nodes of the graph, and the relations are the edges
 between them. Asking keto to check the access for a subject on an object is
-equivalent check if from the object, you can reach the subject on the graph, using
+equivalent to checking if, from the object, you can reach the subject on the graph, using
 only the relations given.
 
 With this tool you can visualize this graph. You can also check that a subject has a right
@@ -50,7 +50,7 @@ over an edge. Basically, the coloring is the representation of the `keto expand`
 command.
 
 The given example will render the following graph.
-[example.png]
+[example](example.png)
 
 ## Current limitations
 
