@@ -1,6 +1,7 @@
 group:0#member@user:0
 group:0#member@user:1
 group:0#member@user:2
+group:0#owner@user:2
 group:1#member@user:3
 group:1#member@user:4
 group:1#member@user:5
@@ -12,7 +13,7 @@ resource:1#parent@folder:0#
 resource:2#parent@folder:1#
 resource:3#parent@folder:1#
 folder:0#editor@group:0#member
-folder:0#owner@user:2
+folder:0#owner@group:0#owner
 
 
 folder:1#owner@group:1#member
