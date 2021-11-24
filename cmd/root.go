@@ -18,46 +18,108 @@ package cmd
 import (
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"strings"
 
+	"github.com/fsnotify/fsnotify"
+
+	"github.com/goccy/go-graphviz"
 	"github.com/pkg/errors"
 
 	"github.com/spf13/cobra"
 )
 
-var cfgFile string
+var outputFile string
+var format string
+var gFormat graphviz.Format
+var watch bool
+var palette []string
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "ketodot",
-	Short: "A brief description of your application",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "Draws a relation graph based on Ory Keto relation-tuples definitions",
+	Long: `Ketodot is small program that takes a file of relation tuples in Ory keto syntax,
+and generates the resulting graph of relations. It can either output a graphviz
+DOT syntax, or directly an image file. It can also watch a source file for
+changes and adjust the output accordingly for easy development.`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	RunE: func(cmd *cobra.Command, args []string) error {
-		var rts []*RelationTuple
-		for _, fn := range args {
-			rtss, err := parseFile(cmd, fn)
+		initOutput()
+		cleanup()
+
+		if watch {
+			watcher, err := fsnotify.NewWatcher()
+			done := make(chan bool)
 			if err != nil {
-				return err
+				log.Fatal(err)
 			}
-			rts = append(rts, rtss...)
+			defer watcher.Close()
+			go watchSave(cmd, args, watcher)
+			for _, v := range args {
+				err := watcher.Add(v)
+				if err != nil {
+					log.Fatal(err)
+				}
+			}
+			oneLoop(cmd, args)
+			cleanup()
+			<-done
+		} else {
+			oneLoop(cmd, args)
 		}
 
-		if len(rts) == 1 {
-			// cmdx.PrintRow(cmd, rts[0])
-			return nil
-		}
-		AssignColor(rts)
-		fmt.Print(Dot(rts))
 		return nil
 	},
+}
+
+func oneLoop(cmd *cobra.Command, args []string) {
+	rts := parse(cmd, args)
+	AssignColor(rts)
+	dot := Dot(rts)
+	output(dot)
+}
+
+func cleanup() {
+	palette = []string{
+		"blue3",
+		"aqua",
+		"aquamarine4",
+		"blueviolet",
+		"chocolate4",
+		"darkgoldenrod",
+		"darkgreen",
+		"darkorange",
+		"deeppink",
+		"green",
+		"indigo",
+		"midnightblue",
+		"sienna4",
+		"tomato1",
+	}
+
+}
+
+func watchSave(cmd *cobra.Command, args []string, watcher *fsnotify.Watcher) {
+	fmt.Println("Watching " + strings.Join(args, ", "))
+	for {
+		select {
+		// watch for write event
+		case event := <-watcher.Events:
+			if event.Op == fsnotify.Write {
+				cleanup()
+				oneLoop(cmd, args)
+			}
+
+			// watch for errors
+		case err := <-watcher.Errors:
+			fmt.Println("ERROR", err)
+			err = watcher.Close()
+			log.Fatal(err)
+		}
+	}
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -72,11 +134,60 @@ func init() {
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.ketodot.yaml)")
+	rootCmd.PersistentFlags().StringVarP(&outputFile, "output", "o", "", "output file")
+	rootCmd.PersistentFlags().StringVarP(&format, "format", "f", "dot", "format of the output. Available formats are : dot, png, svg, jpg")
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	rootCmd.Flags().BoolVarP(&watch, "watch", "w", false, "watch for change in the source file. Stop with keyboard interrupt")
+
+}
+
+func initOutput() {
+	switch format {
+	case "dot":
+		gFormat = graphviz.XDOT
+	case "png":
+		gFormat = graphviz.PNG
+	case "jpg":
+		gFormat = graphviz.JPG
+	case "svg":
+		gFormat = graphviz.SVG
+	default:
+		log.Println("invalid format given, defaulting to dot format")
+		format = "dot"
+	}
+
+	if format != "dot" && outputFile == "" {
+		log.Fatalf("Cannot output an image to stdout. Please provide an output file")
+	}
+}
+
+func parse(cmd *cobra.Command, args []string) []*RelationTuple {
+	var rts []*RelationTuple
+
+	for _, fn := range args {
+		rtss, err := parseFile(cmd, fn)
+		if err != nil {
+			log.Fatalf("%v", err)
+		}
+		rts = append(rts, rtss...)
+	}
+	return rts
+}
+
+func output(dot string) {
+	g := graphviz.New()
+	if outputFile == "" {
+		fmt.Print(dot)
+	} else {
+		graph, err := graphviz.ParseBytes([]byte(dot))
+		if err != nil {
+			log.Fatal("unable to parse generated dot")
+		}
+		g.RenderFilename(graph, gFormat, outputFile)
+	}
+
 }
 
 type ColorGroup struct {
@@ -129,23 +240,6 @@ func AssignColor(rts []*RelationTuple) {
 		}
 
 	}
-}
-
-var palette []string = []string{
-	"blue3",
-	"aqua",
-	"aquamarine4",
-	"blueviolet",
-	"chocolate4",
-	"darkgoldenrod",
-	"darkgreen",
-	"darkorange",
-	"deeppink",
-	"green",
-	"indigo",
-	"midnightblue",
-	"sienna4",
-	"tomato1",
 }
 
 func NewColorGroup(color string) *ColorGroup {

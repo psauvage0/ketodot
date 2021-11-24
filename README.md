@@ -10,7 +10,7 @@ To compile :
 go build -o $GOBIN/
 ```
 
-## Running the example
+## How to use
 
 ```
 ketodot example.keto
@@ -18,6 +18,16 @@ ketodot example.keto
 This will print on stdout the DOT grammar representing the graph.
 You can redirect this output into a file and then use [graphviz](https://graphviz.org/)
 to render it, **or** you can simply copy and paste the output [here](https://dreampuf.github.io/GraphvizOnline/).
+
+You can also directly render to png, jpg or svg :
+```
+ketodot example.keto -f png -o example.png
+```
+
+You can also watch for change in the source file and render again on save with the w flag :
+```
+ketodot example.keto -f png -o example.png -w
+```
 
 ## How it works
 
